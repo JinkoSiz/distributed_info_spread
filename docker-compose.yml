@@ -3,6 +3,7 @@ services:
     build: ./controller
     environment:
       - NODE_COUNT=${NODE_COUNT}
+      - EXPECTED=${EXPECTED}
       - TIMEOUT_SEC=${TIMEOUT_SEC}
       - CONTROLLER_URL=http://controller:8000
       - RESULTS_DIR=/app/results
@@ -23,6 +24,9 @@ services:
       - ROUND_PAUSE=${ROUND_PAUSE}
       - ROUNDS_BROADCAST=${ROUNDS_BROADCAST}
       - ROUNDS_FANOUT=${ROUNDS_FANOUT}
+      - LOSS_PROB=${LOSS_PROB}
+      - FAIL_PROB=${FAIL_PROB}
+      - FANOUT=${FANOUT}
     depends_on:
       - controller
 
@@ -36,7 +40,10 @@ services:
       - ROUND_PAUSE=${ROUND_PAUSE}
       - ROUNDS_BROADCAST=${ROUNDS_BROADCAST}
       - ROUNDS_FANOUT=${ROUNDS_FANOUT}
-      - IS_SEED=1 
+      - LOSS_PROB=${LOSS_PROB}
+      - FAIL_PROB=${FAIL_PROB}
+      - FANOUT=${FANOUT}
+      - IS_SEED=0
     depends_on:
       - controller
     deploy:

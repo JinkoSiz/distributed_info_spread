@@ -29,6 +29,7 @@ IS_SEED = os.getenv("IS_SEED", "0") == "1"
 CONTROLLER_URL = os.getenv("CONTROLLER_URL", "http://controller:8000")
 SEED_CLUSTER_TIMEOUT = float(os.getenv("SEED_CLUSTER_TIMEOUT", "120"))
 ROUND_PAUSE = float(os.getenv("ROUND_PAUSE", "0.3"))
+FAIL_PROB = float(os.getenv("FAIL_PROB", "0.0"))
 
 # -----------------------------------------------------------------------------
 # ЛОГИРОВАНИЕ
@@ -163,7 +164,15 @@ async def receive(req: Request):
                 except httpx.HTTPError as exc:
                     log.warning("report attempt %d failed: %s", attempt + 1, exc)
                     await asyncio.sleep(0.2)
+        if random.random() < FAIL_PROB:
+            log.warning("Node failing after first message")
+            os._exit(1)
     return {"status": "ok"}
+
+
+@app.post("/pull")
+async def pull(req: Request):
+    return await receive(req)
 
 
 def main():

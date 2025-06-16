@@ -6,6 +6,7 @@ set -euo pipefail
 # -----------------------
 NODE_COUNT=101       # 1 seed + 100 обычных узлов
 ORDINARY=$((NODE_COUNT-1))
+EXPECTED=$ORDINARY
 REPEATS=5
 ALGORITHMS=(singlecast multicast broadcast gossip_push gossip_pushpull)
 
@@ -27,6 +28,7 @@ CONTROLLER_URL="http://controller:8000"
 # -----------------------
 cat > .env <<EOF
 NODE_COUNT=${NODE_COUNT}
+EXPECTED=${EXPECTED}
 LOSS_PROB=${LOSS_PROB}
 FAIL_PROB=${FAIL_PROB}
 FANOUT=${FANOUT}

@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 # Сколько обычных нод ожидаем:
 NODE_COUNT = int(os.getenv("NODE_COUNT", "100"))
-EXPECTED = NODE_COUNT - 1
+EXPECTED = int(os.getenv("EXPECTED", str(NODE_COUNT - 1)))
 
 # Куда сохранять результаты:
 RESULTS_DIR = os.getenv("RESULTS_DIR", "/app/results")
