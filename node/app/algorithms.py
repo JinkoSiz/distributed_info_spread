@@ -84,7 +84,10 @@ async def gossip_pushpull(node, peers, payload):
     async with httpx.AsyncClient() as client:
         for r in range(ROUNDS_FANOUT):
             peer = random.choice(peers)
-            log.debug("gossip_pushpull round %d/%d with %s", r + 1, ROUNDS_FANOUT, peer)
+            log.debug(
+                "gossip_pushpull round %d/%d with %s", r + 1, ROUNDS_FANOUT, peer
+            )
+            base = peer.rsplit("/", 1)[0]
             await unreliable_send(client, peer, payload)
-            await unreliable_send(client, peer + "/pull", payload)
+            await unreliable_send(client, f"{base}/pull", payload)
             await asyncio.sleep(PAUSE_SEC)

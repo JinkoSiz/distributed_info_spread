@@ -15,6 +15,7 @@ from algorithms import (
     broadcast,
     gossip_push,
     gossip_pushpull,
+    get_all_peers,
 )
 
 # -----------------------------------------------------------------------------
@@ -39,18 +40,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 log = logging.getLogger("node")
-
-
-# -----------------------------------------------------------------------------
-# DNS-peer discovery
-# -----------------------------------------------------------------------------
-def get_all_peers(service: str) -> list[str]:
-    addrs = {
-        info[4][0]
-        for info in socket.getaddrinfo(service, 5000, proto=socket.IPPROTO_TCP)
-    }
-    return [f"http://{ip}:5000/message" for ip in sorted(addrs)]
-
 
 # -----------------------------------------------------------------------------
 # FASTAPI

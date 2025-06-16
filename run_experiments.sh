@@ -26,7 +26,16 @@ CONTROLLER_URL="http://controller:8000"
 # -----------------------
 #   Генерируем .env
 # -----------------------
-cat > .env <<EOF
+# -----------------------
+#   Цикл экспериментов
+# -----------------------
+for ALG in "${ALGORITHMS[@]}"; do
+  for RUN in $(seq 1 $REPEATS); do
+    echo ">>> $ALG  run $RUN/$REPEATS"
+    export ALGORITHM=$ALG
+
+    cat > .env <<EOF
+
 NODE_COUNT=${NODE_COUNT}
 EXPECTED=${EXPECTED}
 LOSS_PROB=${LOSS_PROB}
@@ -39,19 +48,12 @@ TIMEOUT_SEC=${TIMEOUT_SEC}
 DEBUG=${DEBUG}
 CONTROLLER_URL=${CONTROLLER_URL}
 SEED_CLUSTER_TIMEOUT=${SEED_CLUSTER_TIMEOUT}
+ALGORITHM=${ALGORITHM}
 EOF
 
-echo ".env:"
-cat .env
-echo
-
-# -----------------------
-#   Цикл экспериментов
-# -----------------------
-for ALG in "${ALGORITHMS[@]}"; do
-  for RUN in $(seq 1 $REPEATS); do
-    echo ">>> $ALG  run $RUN/$REPEATS"
-    export ALGORITHM=$ALG
+    echo ".env:"
+    cat .env
+    echo
 
     # Сбрасываем старые
     docker compose down -v --remove-orphans
