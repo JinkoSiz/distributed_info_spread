@@ -8,6 +8,8 @@ import socket
 import httpx
 import uvicorn
 from fastapi import FastAPI, Request
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from fastapi.responses import PlainTextResponse
 
 from algorithms import (
     singlecast,
@@ -15,6 +17,7 @@ from algorithms import (
     broadcast,
     gossip_push,
     gossip_pushpull,
+    get_all_peers,
 )
 
 # -----------------------------------------------------------------------------
@@ -29,6 +32,13 @@ IS_SEED = os.getenv("IS_SEED", "0") == "1"
 CONTROLLER_URL = os.getenv("CONTROLLER_URL", "http://controller:8000")
 SEED_CLUSTER_TIMEOUT = float(os.getenv("SEED_CLUSTER_TIMEOUT", "120"))
 ROUND_PAUSE = float(os.getenv("ROUND_PAUSE", "0.3"))
+FAIL_PROB = float(os.getenv("FAIL_PROB", "0.0"))
+
+# Prometheus metrics
+MSG_RECEIVED = Counter("msg_received_total", "Messages received", ["algorithm"])
+RECV_LATENCY = Histogram(
+    "receive_latency_seconds", "Seconds from send to receive", ["algorithm"]
+)
 
 # -----------------------------------------------------------------------------
 # ЛОГИРОВАНИЕ
@@ -38,17 +48,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 log = logging.getLogger("node")
-
-
-# -----------------------------------------------------------------------------
-# DNS-peer discovery
-# -----------------------------------------------------------------------------
-def get_all_peers(service: str) -> list[str]:
-    addrs = {
-        info[4][0]
-        for info in socket.getaddrinfo(service, 5000, proto=socket.IPPROTO_TCP)
-    }
-    return [f"http://{ip}:5000/message" for ip in sorted(addrs)]
 
 
 # -----------------------------------------------------------------------------
@@ -62,6 +61,11 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/metrics")
+async def metrics():
+    return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 has_msg = False
 start_ts = None
 recv_ts = None
@@ -73,6 +77,8 @@ algo_fn = {
     "gossip_push": gossip_push,
     "gossip_pushpull": gossip_pushpull,
 }[ALGORITHM]
+
+log.info("Using algorithm: %s", ALGORITHM)
 
 
 async def spread(payload: dict):
@@ -144,6 +150,10 @@ async def receive(req: Request):
         # запустить спред асинхронно
         asyncio.create_task(spread(payload))
 
+        MSG_RECEIVED.labels(ALGORITHM).inc()
+        if start_ts:
+            RECV_LATENCY.labels(ALGORITHM).observe(recv_ts - start_ts)
+
         # отчёт контроллеру
         report = {
             "node": os.getenv("HOSTNAME", "unknown"),
@@ -163,7 +173,15 @@ async def receive(req: Request):
                 except httpx.HTTPError as exc:
                     log.warning("report attempt %d failed: %s", attempt + 1, exc)
                     await asyncio.sleep(0.2)
+        if random.random() < FAIL_PROB:
+            log.warning("Node failing after first message")
+            os._exit(1)
     return {"status": "ok"}
+
+
+@app.post("/pull")
+async def pull(req: Request):
+    return await receive(req)
 
 
 def main():

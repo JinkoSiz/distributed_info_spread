@@ -13,10 +13,12 @@
 ```bash
 git clone <repo> distributed_info_spread
 cd distributed_info_spread
-./run_experiments.sh               # одна команда — все исследования
+./run_experiments.sh               # запускает один эксперимент
 ```
 
 Результаты появятся в `results/` в виде JSON‑логов, один каталог на каждый алгоритм и набор параметров.
+
+Во время работы контейнеры также публикуют метрики Prometheus. Сервис Grafana автоматически подключается к ним и доступен по адресу [http://localhost:3000](http://localhost:3000) (логин/пароль `admin`/`admin`).
 
 ## Структура проекта
 ```
@@ -37,6 +39,8 @@ distributed_info_spread/
 - **FANOUT** — размер подмножества при multicast и gossip.
 
 Изменить можно в `run_experiments.sh` или через переменные среды.
+
+- **ALGORITHM** — алгоритм распространения (`broadcast`, `multicast`, `singlecast`, `gossip_push`, `gossip_pushpull`).
 
 ## Лицензия
 MIT

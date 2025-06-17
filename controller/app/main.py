@@ -3,6 +3,8 @@ import json
 import asyncio
 import logging
 from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 import uvicorn
 
 app = FastAPI()
@@ -11,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 # Сколько обычных нод ожидаем:
 NODE_COUNT = int(os.getenv("NODE_COUNT", "100"))
-EXPECTED = NODE_COUNT - 1
+EXPECTED = int(os.getenv("EXPECTED", str(NODE_COUNT - 1)))
 
 # Куда сохранять результаты:
 RESULTS_DIR = os.getenv("RESULTS_DIR", "/app/results")
@@ -20,6 +22,13 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 # Хранилище приходящих отчётов:
 reports = {}
 shutdown_event = asyncio.Event()
+
+# Prometheus metrics
+REPORT_TOTAL = Counter("controller_reports_total", "Reports received")
+LATENCY = Histogram(
+    "controller_receive_latency_seconds",
+    "Seconds for a node to receive the message",
+)
 
 
 @app.post("/report")
@@ -32,6 +41,11 @@ async def report(req: Request):
         with open(fn, "w") as f:
             json.dump(data, f)
         log.info("✏️  Saved report for %s → %s", node, fn)
+        REPORT_TOTAL.inc()
+        try:
+            LATENCY.observe(data["receive_time"] - data["start_time"])
+        except Exception:
+            pass
     # Когда все отчёты собраны — ставим ивент на завершение
     if len(reports) >= EXPECTED:
         shutdown_event.set()
@@ -41,6 +55,11 @@ async def report(req: Request):
 @app.get("/health")
 async def health():
     return {"status": "up"}
+
+
+@app.get("/metrics")
+async def metrics():
+    return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 if __name__ == "__main__":

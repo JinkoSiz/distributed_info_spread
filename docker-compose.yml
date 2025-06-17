@@ -3,6 +3,7 @@ services:
     build: ./controller
     environment:
       - NODE_COUNT=${NODE_COUNT}
+      - EXPECTED=${EXPECTED}
       - TIMEOUT_SEC=${TIMEOUT_SEC}
       - CONTROLLER_URL=http://controller:8000
       - RESULTS_DIR=/app/results
@@ -10,6 +11,27 @@ services:
       - ./results:/app/results
     ports:
       - "8000:8000"
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - controller
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
 
   seed:
     build: ./node
@@ -23,6 +45,10 @@ services:
       - ROUND_PAUSE=${ROUND_PAUSE}
       - ROUNDS_BROADCAST=${ROUNDS_BROADCAST}
       - ROUNDS_FANOUT=${ROUNDS_FANOUT}
+      - LOSS_PROB=${LOSS_PROB}
+      - FAIL_PROB=${FAIL_PROB}
+      - FANOUT=${FANOUT}
+      - ALGORITHM=${ALGORITHM}
     depends_on:
       - controller
 
@@ -36,8 +62,15 @@ services:
       - ROUND_PAUSE=${ROUND_PAUSE}
       - ROUNDS_BROADCAST=${ROUNDS_BROADCAST}
       - ROUNDS_FANOUT=${ROUNDS_FANOUT}
-      - IS_SEED=1 
+      - LOSS_PROB=${LOSS_PROB}
+      - FAIL_PROB=${FAIL_PROB}
+      - FANOUT=${FANOUT}
+      - IS_SEED=0
+      - ALGORITHM=${ALGORITHM}
     depends_on:
       - controller
     deploy:
       replicas: ${NODE_COUNT:-111}
+
+volumes:
+  grafana-data:
