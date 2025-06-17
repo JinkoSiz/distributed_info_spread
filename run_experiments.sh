@@ -24,7 +24,7 @@ DEBUG=0
 CONTROLLER_URL="http://controller:8000"
 
 # -----------------------
-#   Генерируем .env
+#   Генерируем .env и запускаем контейнеры
 # -----------------------
 # -----------------------
 #   Цикл экспериментов
@@ -48,25 +48,30 @@ TIMEOUT_SEC=${TIMEOUT_SEC}
 DEBUG=${DEBUG}
 CONTROLLER_URL=${CONTROLLER_URL}
 SEED_CLUSTER_TIMEOUT=${SEED_CLUSTER_TIMEOUT}
-ALGORITHM=${ALGORITHM}
+ALGORITHM=unused
 EOF
 
-    echo ".env:"
-    cat .env
-    echo
+docker compose up -d --build --scale node=$ORDINARY
+sleep 5
 
-    # Сбрасываем старые
-    docker compose down -v --remove-orphans
+RUN_ID=1
+for ALG in "${ALGORITHMS[@]}"; do
+  for RUN in $(seq 1 $REPEATS); do
+    echo ">>> $ALG  run $RUN/$REPEATS"
+    docker compose exec -T \
+      -e ALG=$ALG -e RUN_ID=$RUN_ID seed \
+      python - <<'PY'
+import os, httpx
+payload = {"msg":"hello","origin":"seed","algorithm":os.environ['ALG'],"run_id":int(os.environ['RUN_ID'])}
+httpx.post("http://localhost:5000/message", json=payload)
+PY
 
-    # Запускаем — controller завершится сам, как только соберёт все отчёты
-    docker compose up --build \
-      --scale node=$ORDINARY \
-      --exit-code-from controller
-
-    # Переносим результаты
+    while [ ! -f results/done_${RUN_ID} ]; do sleep 2; done
     mkdir -p archive/$ALG
-    mv results/experiment_*.json archive/$ALG/ 2>/dev/null || true
-    rm -rf results/*
+    mv results/experiment_${RUN_ID}_*.json archive/$ALG/ 2>/dev/null || true
+    rm -f results/done_${RUN_ID}
+    RUN_ID=$((RUN_ID+1))
+    docker compose restart seed node >/dev/null
   done
 done
 
