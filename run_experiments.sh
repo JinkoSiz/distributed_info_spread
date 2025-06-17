@@ -26,7 +26,16 @@ CONTROLLER_URL="http://controller:8000"
 # -----------------------
 #   Генерируем .env и запускаем контейнеры
 # -----------------------
-cat > .env <<EOF
+# -----------------------
+#   Цикл экспериментов
+# -----------------------
+for ALG in "${ALGORITHMS[@]}"; do
+  for RUN in $(seq 1 $REPEATS); do
+    echo ">>> $ALG  run $RUN/$REPEATS"
+    export ALGORITHM=$ALG
+
+    cat > .env <<EOF
+
 NODE_COUNT=${NODE_COUNT}
 EXPECTED=${EXPECTED}
 LOSS_PROB=${LOSS_PROB}
